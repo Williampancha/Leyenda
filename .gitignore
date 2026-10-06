@@ -1,4 +1,5 @@
 .idea
 datasets/
+datasets_n2
 *.h5
 !model_full.Weights.h5
