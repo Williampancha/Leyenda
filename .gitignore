@@ -3,3 +3,4 @@ datasets/
 *.h5!weights.h5
 .venv/
 cache/
+checkpoints/
