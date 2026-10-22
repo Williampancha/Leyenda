@@ -4,3 +4,4 @@ datasets/
 .venv/
 cache/
 checkpoints/
+__pycache__/

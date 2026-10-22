@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legenda — Image captioning</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #6e778b;
+      --primary: #6956e8;
+      --primary-dark: #5140c4;
+      --accent: #f1eeff;
+      --surface: rgba(255, 255, 255, 0.88);
+      --line: #e8e7f2;
+      --success: #16865b;
+      --danger: #bd3b52;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, #e8e4ff 0, transparent 32%),
+        radial-gradient(circle at 100% 20%, #dff7f0 0, transparent 28%),
+        #f8f9fc;
+    }
+
+    .shell {
+      width: min(1080px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 52px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 62px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      color: white;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), #a776f4);
+      box-shadow: 0 10px 22px rgba(105, 86, 232, 0.28);
+    }
+
+    .badge {
+      padding: 8px 13px;
+      color: var(--primary-dark);
+      border: 1px solid #ddd8ff;
+      border-radius: 99px;
+      background: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .hero {
+      max-width: 680px;
+      margin: 0 auto 34px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--primary);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.065em;
+    }
+
+    .hero p {
+      margin: 18px auto 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.65;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+      gap: 22px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 26px;
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(38, 42, 72, 0.11);
+      backdrop-filter: blur(14px);
+    }
+
+    .panel {
+      min-height: 430px;
+      padding: 28px;
+      border-radius: 19px;
+      background: white;
+    }
+
+    .panel h2 {
+      margin: 0 0 7px;
+      font-size: 1.12rem;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    #drop-zone {
+      display: grid;
+      min-height: 285px;
+      padding: 24px;
+      cursor: pointer;
+      place-items: center;
+      text-align: center;
+      border: 1.5px dashed #c8c3ee;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #fbfaff, #f5f3ff);
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+
+    #drop-zone:hover, #drop-zone.dragging {
+      border-color: var(--primary);
+      background: #f1efff;
+      transform: translateY(-2px);
+    }
+
+    .upload-icon {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 15px;
+      place-items: center;
+      color: var(--primary);
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 8px 24px rgba(105, 86, 232, 0.13);
+      font-size: 1.5rem;
+    }
+
+    .drop-title {
+      margin: 0;
+      font-weight: 750;
+    }
+
+    .drop-help {
+      margin: 8px 0 18px;
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .file-button, button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 18px;
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 700;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .file-button:hover, button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    #image { display: none; }
+    #preview { display: none; width: 100%; height: 285px; object-fit: contain; border-radius: 12px; }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 17px;
+    }
+
+    .file-name {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    button {
+      min-width: 172px;
+      flex-shrink: 0;
+    }
+
+    button:disabled { cursor: wait; opacity: 0.65; transform: none; }
+
+    .result-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #fafaff;
+    }
+
+    .result-empty {
+      color: #989eb0;
+      text-align: center;
+    }
+
+    .result-empty .sparkle { margin-bottom: 14px; font-size: 2.1rem; }
+    .result-empty p { margin: 0; line-height: 1.55; }
+
+    .result-content { display: none; }
+
+    .pipeline {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: #a0a5b5;
+      font-size: 0.9rem;
+    }
+
+    .pipeline-step::before {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border: 1px solid #e1e2eb;
+      border-radius: 50%;
+      content: "•";
+      font-size: 0.72rem;
+    }
+
+    .pipeline-step.done {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .pipeline-step.done::before {
+      border-color: #bce8d3;
+      background: #eafaf2;
+      content: "✓";
+    }
+
+    .pipeline-step.active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .pipeline-step.active::before {
+      border-color: #c9c2ff;
+      background: var(--accent);
+      content: "…";
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 18px;
+      color: var(--success);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    .caption {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1.45rem;
+      font-weight: 650;
+      line-height: 1.4;
+    }
+
+    .error { color: var(--danger); }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      header { margin-bottom: 42px; }
+      .badge { display: none; }
+      .workspace { grid-template-columns: 1fr; }
+      .panel { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <span class="brand-mark">L</span>
+        <span>Legenda</span>
+      </div>
+      <span class="badge">AI image captioning</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">Comprendre chaque image</p>
+      <h1>Une image.<br />Une légende.</h1>
+      <p>Importe une image et laisse Legenda générer une description automatiquement.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="panel">
+        <h2>Ajouter une image</h2>
+        <p class="panel-subtitle">Formats acceptés : JPG, PNG, WEBP</p>
+
+        <form id="predict-form">
+          <label id="drop-zone" for="image">
+            <div id="upload-content">
+              <div class="upload-icon">↑</div>
+              <p class="drop-title">Dépose ton image ici</p>
+              <p class="drop-help">ou sélectionne un fichier depuis ton appareil</p>
+              <span class="file-button">Choisir une image</span>
+            </div>
+            <img id="preview" alt="Aperçu de l'image sélectionnée" />
+          </label>
+          <input id="image" name="image" type="file" accept="image/*" required />
+
+          <div class="action-row">
+            <span id="file-name" class="file-name">Aucun fichier sélectionné</span>
+            <button id="submit-button" type="submit">Générer la légende</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel result-panel">
+        <div id="result-empty" class="result-empty">
+          <div class="sparkle">✦</div>
+          <p>La légende de ton image<br />apparaîtra ici.</p>
+        </div>
+        <div id="result-content" class="result-content">
+          <div id="pipeline" class="pipeline">
+            <div class="pipeline-step" data-stage="classification">Classification de l'image</div>
+            <div class="pipeline-step" data-stage="denoising">Image débruitée</div>
+            <div class="pipeline-step" data-stage="caption">Caption générée</div>
+          </div>
+          <div id="status" class="status">Image analysée</div>
+          <p id="caption" class="caption"></p>
+        </div>
+      </div>
+    </section>
+
+    <footer>Legenda · Donner du sens à vos images</footer>
+  </main>
+
+  <script>
+    const form = document.getElementById("predict-form");
+    const fileInput = document.getElementById("image");
+    const dropZone = document.getElementById("drop-zone");
+    const uploadContent = document.getElementById("upload-content");
+    const preview = document.getElementById("preview");
+    const fileName = document.getElementById("file-name");
+    const submitButton = document.getElementById("submit-button");
+    const emptyResult = document.getElementById("result-empty");
+    const resultContent = document.getElementById("result-content");
+    const status = document.getElementById("status");
+    const caption = document.getElementById("caption");
+    const pipelineSteps = [...document.querySelectorAll(".pipeline-step")];
+
+    function updatePipeline(stage) {
+      const order = ["classification", "denoising", "caption"];
+      const currentIndex = order.indexOf(stage);
+
+      pipelineSteps.forEach((step) => {
+        const stepIndex = order.indexOf(step.dataset.stage);
+        step.classList.toggle("done", stepIndex < currentIndex || stage === "caption");
+        step.classList.toggle("active", stepIndex === currentIndex && stage !== "caption");
+      });
+    }
+
+    function setSelectedFile(file) {
+      if (!file) return;
+
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      fileInput.files = transfer.files;
+      fileName.textContent = file.name;
+
+      if (file.type.startsWith("image/")) {
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = "block";
+        uploadContent.style.display = "none";
+      }
+    }
+
+    fileInput.addEventListener("change", () => {
+      setSelectedFile(fileInput.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragging");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragging");
+      });
+    });
+
+    dropZone.addEventListener("drop", (event) => {
+      setSelectedFile(event.dataTransfer.files[0]);
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const file = fileInput.files[0];
+      if (!file) {
+        status.textContent = "Fichier manquant";
+        status.classList.add("error");
+        caption.textContent = "Sélectionne une image avant de lancer l'analyse.";
+        emptyResult.style.display = "none";
+        resultContent.style.display = "block";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", file);
+      submitButton.disabled = true;
+      submitButton.textContent = "Analyse en cours...";
+      emptyResult.style.display = "none";
+      resultContent.style.display = "block";
+      status.textContent = "Analyse en cours";
+      status.classList.remove("error");
+      caption.textContent = "Legenda observe ton image...";
+      pipelineSteps.forEach((step) => step.classList.remove("done", "active"));
+
+      try {
+        const response = await fetch("/api/predict-stream", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok || !response.body) {
+          throw new Error("Impossible de démarrer la pipeline.");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line);
+            status.textContent = event.message;
+
+            if (event.stage === "classification") {
+              updatePipeline("classification");
+              if (!event.result?.is_photo) {
+                status.textContent = "Analyse arrêtée";
+                status.classList.add("error");
+                caption.textContent = event.message || event.result?.error;
+              }
+            } else if (event.stage === "denoising") {
+              updatePipeline("denoising");
+            } else if (event.stage === "caption") {
+              updatePipeline("caption");
+              status.textContent = "Image analysée";
+              caption.textContent = event.result.prediction || "Aucune légende générée.";
+            } else if (event.stage === "error" || event.result?.is_photo === false) {
+              status.textContent = "Analyse arrêtée";
+              status.classList.add("error");
+              caption.textContent = event.message || event.result?.error;
+            }
+          }
+        }
+      } catch (error) {
+        status.textContent = "Une erreur est survenue";
+        status.classList.add("error");
+        caption.textContent = error.message;
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Générer la légende";
+      }
+    });
+  </script>
+</body>
+</html>
