@@ -1,0 +1,12 @@
+.git
+.gitignore
+.idea
+.venv
+__pycache__/
+**/__pycache__/
+*.pyc
+datasets/
+checkpoints/
+cache/
+*.ipynb
+logo_cesi_etudiant.png

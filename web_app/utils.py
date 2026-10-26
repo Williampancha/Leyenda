@@ -8,7 +8,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-os.environ["KERAS_BACKEND"]="torch"
+os.environ["KERAS_BACKEND"] = "torch"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import keras
 import numpy as np
@@ -17,6 +18,10 @@ import tensorflow as tf
 from PIL import Image
 from keras import layers, ops
 from keras.applications.inception_v3 import InceptionV3, preprocess_input
+
+tf.config.set_visible_devices([], "GPU")
+CPU_DEVICE = torch.device("cpu")
+torch.set_default_device(CPU_DEVICE)
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -271,12 +276,14 @@ def _load_lstm_models() -> tuple[CNNEncoder, AttentionDecoder]:
     _require_paths(LSTM_ENCODER_WEIGHTS, LSTM_DECODER_WEIGHTS)
     encoder = CNNEncoder(EMBEDDING_DIM)
     decoder = AttentionDecoder(EMBEDDING_DIM, UNITS, VOCAB_SIZE)
-    dummy_features = torch.zeros((1, ATTENTION_FEATURES_SHAPE, 2048),)
+    dummy_features = torch.zeros((1, ATTENTION_FEATURES_SHAPE, 2048), device=CPU_DEVICE)
     encoded_features = encoder(dummy_features, training=False)
-    dummy_token = torch.zeros((1, 1),dtype=torch.int64,)
-    decoder(dummy_token,encoded_features,decoder.reset_state(1),training=False,)
+    dummy_token = torch.zeros((1, 1), dtype=torch.int64, device=CPU_DEVICE)
+    decoder(dummy_token, encoded_features, decoder.reset_state(1), training=False)
     encoder.load_weights(LSTM_ENCODER_WEIGHTS)
     decoder.load_weights(LSTM_DECODER_WEIGHTS)
+    encoder.to(CPU_DEVICE)
+    decoder.to(CPU_DEVICE)
     _lstm_encoder, _lstm_decoder = encoder, decoder
     return encoder, decoder
 
@@ -284,23 +291,24 @@ def _load_lstm_models() -> tuple[CNNEncoder, AttentionDecoder]:
 def infer_caption(image: np.ndarray) -> str:
     encoder, decoder = _load_lstm_models()
     tokenizer = _load_tokenizer()
-    features = encoder(extract_features(image), training=False)
-    state = decoder.reset_state(batch_size=1)
-    start_token = tokenizer.word_index.get("<start>")
-    if start_token is None:
-        raise ValueError("Le tokenizer ne contient pas le token <start>.")
+    with torch.no_grad():
+        features = encoder(extract_features(image), training=False)
+        state = decoder.reset_state(batch_size=1)
+        start_token = tokenizer.word_index.get("<start>")
+        if start_token is None:
+            raise ValueError("Le tokenizer ne contient pas le token <start>.")
 
-    decoder_input = torch.tensor([[start_token]],dtype=torch.int64,)
-    result = []
-    for _ in range(52): #max_length = 52
-        predictions, state, _ = decoder(decoder_input,features,state,training=False,)
-        predicted_id = int(torch.argmax(predictions[0]).item())
-        word = tokenizer.index_word.get(predicted_id, "<unk>")
-        if word == "<end>":
-            break
-        if word not in {"<start>", "<unk>"}:
-            result.append(word)
-        decoder_input = torch.tensor([[predicted_id]],dtype=torch.int64,)
+        decoder_input = torch.tensor([[start_token]], dtype=torch.int64, device=CPU_DEVICE)
+        result = []
+        for _ in range(52): #max_length = 52
+            predictions, state, _ = decoder(decoder_input, features, state, training=False)
+            predicted_id = int(torch.argmax(predictions[0]).item())
+            word = tokenizer.index_word.get(predicted_id, "<unk>")
+            if word == "<end>":
+                break
+            if word not in {"<start>", "<unk>"}:
+                result.append(word)
+            decoder_input = torch.tensor([[predicted_id]], dtype=torch.int64, device=CPU_DEVICE)
     return " ".join(result)
 
 
