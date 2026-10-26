@@ -4,7 +4,6 @@ import gc
 import io
 import os
 import collections
-import json
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -27,9 +26,6 @@ CLASSIFIER_WEIGHTS = MODELS_DIR / "model_full.weights.h5"
 DENOISER_MODEL = MODELS_DIR / "unet_denoiser_livrable2.keras"
 LSTM_ENCODER_WEIGHTS = MODELS_DIR / "encoder_LSTM_epoch_019.weights.h5"
 LSTM_DECODER_WEIGHTS = MODELS_DIR / "decoder_LSTM_epoch_019.weights.h5"
-DATASETS_DIR = PROJECT_DIR / "datasets" / "Livrable 3"
-DENOISED_DIR = DATASETS_DIR / "denoised_images"
-ANNOTATION_FILE = DATASETS_DIR / "annotations" / "captions_train2014.json"
 
 CLASS_NAMES = ["Painting", "Photo", "Schematics", "Sketch", "Text"]
 PHOTO_CLASS_INDEX = CLASS_NAMES.index("Photo")
@@ -38,7 +34,6 @@ ATTENTION_FEATURES_SHAPE = 64
 EMBEDDING_DIM = 256
 UNITS = 512
 VOCAB_SIZE = 5001
-# INFERENCE_DEVICE = torch.device("cpu")
 
 _classifier: keras.Model | None = None
 _denoiser: keras.Model | None = None
@@ -46,15 +41,12 @@ _inception_extractor: keras.Model | None = None
 _lstm_encoder: CNNEncoder | None = None
 _lstm_decoder: AttentionDecoder | None = None
 _tokenizer: Any | None = None
-_max_length: int | None = None
 
 
 def _require_paths(*paths: Path) -> None:
     missing = [str(path) for path in paths if not path.exists()]
     if missing:
-        raise FileNotFoundError(
-            "Fichiers nécessaires introuvables : " + ", ".join(missing)
-        )
+        raise FileNotFoundError("Fichiers nécessaires introuvables : " + ", ".join(missing))
 
 
 def _image_from_bytes(content: bytes) -> Image.Image:
@@ -152,7 +144,6 @@ def denoise_image(content: bytes) -> np.ndarray:
     return np.clip(denoised, 0.0, 1.0).astype(np.float32)
 
 
-# Reprise de build_inception_feature_extractor et load_image_for_inception.
 def build_inception_feature_extractor() -> keras.Model:
     global _inception_extractor
     if _inception_extractor is None:
@@ -264,72 +255,11 @@ class AttentionDecoder(keras.Model):
         hidden = ops.zeros((batch_size, self.units))
         return hidden, ops.zeros((batch_size, self.units))
 
-def create_captions_and_path_vectors(
-    annotation_file: str | Path,
-    already_done: bool = False,
-) -> tuple[list[str], list[str]]:
-    image_path_to_caption = collections.defaultdict(list)
-    train_captions = []
-    image_name_vector = []
-    mark_start, mark_end = "<start> ", " <end>"
-    end_path = ".npy" if already_done else ""
-
-    with Path(annotation_file).open("r", encoding="utf-8") as file:
-        annotations = json.load(file)
-
-    for value in annotations["annotations"]:
-        caption = mark_start + value["caption"].strip() + mark_end
-        image_path = DENOISED_DIR / (
-            f"COCO_train2014_{value['image_id']:012d}.jpg{end_path}"
-        )
-        if image_path.is_file():
-            image_path_to_caption[str(image_path)].append(caption)
-
-    for image_path, caption_list in image_path_to_caption.items():
-        train_captions.extend(caption_list)
-        image_name_vector.extend([image_path] * len(caption_list))
-
-    return image_name_vector, train_captions
-
-
-def calc_max_length(tensor: list[list[int]]) -> int:
-    return max(len(tokens) for tokens in tensor)
-
-
-def annotation_preprocessing(
-    train_captions: list[str],
-    top_k: int = 5000,
-) -> tuple[np.ndarray, int, Any]:
-    tokenizer = tf.keras.preprocessing.text.Tokenizer(
-        num_words=top_k,
-        oov_token="<unk>",
-        filters='!"#$%&()*+.,-/:;=?@[\\]^_`{|}~',
-    )
-    tokenizer.fit_on_texts(train_captions)
-    tokenizer.word_index["<pad>"] = 0
-    tokenizer.index_word[0] = "<pad>"
-    train_sequences = tokenizer.texts_to_sequences(train_captions)
-    cap_vector = tf.keras.preprocessing.sequence.pad_sequences(
-        train_sequences,
-        padding="post",
-    )
-    return cap_vector, calc_max_length(train_sequences), tokenizer
-
 
 def _load_tokenizer() -> Any:
-    global _tokenizer, _max_length
-    if _tokenizer is None:
-        _require_paths(ANNOTATION_FILE, DENOISED_DIR)
-        _, train_captions = create_captions_and_path_vectors(
-            ANNOTATION_FILE,
-            already_done=True,
-        )
-        if not train_captions:
-            raise ValueError(
-                "Aucune annotation prétraitée trouvée dans "
-                f"{DENOISED_DIR}."
-            )
-        _, _max_length, _tokenizer = annotation_preprocessing(train_captions)
+    global _tokenizer
+    with open(MODELS_DIR / 'tokenizer.json', 'r') as f:
+        _tokenizer = tf.keras.preprocessing.text.tokenizer_from_json(f.read())
     return _tokenizer
 
 
@@ -341,22 +271,10 @@ def _load_lstm_models() -> tuple[CNNEncoder, AttentionDecoder]:
     _require_paths(LSTM_ENCODER_WEIGHTS, LSTM_DECODER_WEIGHTS)
     encoder = CNNEncoder(EMBEDDING_DIM)
     decoder = AttentionDecoder(EMBEDDING_DIM, UNITS, VOCAB_SIZE)
-    dummy_features = torch.zeros(
-        (1, ATTENTION_FEATURES_SHAPE, 2048),
-        # device=INFERENCE_DEVICE,
-    )
+    dummy_features = torch.zeros((1, ATTENTION_FEATURES_SHAPE, 2048),)
     encoded_features = encoder(dummy_features, training=False)
-    dummy_token = torch.zeros(
-        (1, 1),
-        dtype=torch.int64,
-        # device=INFERENCE_DEVICE,
-    )
-    decoder(
-        dummy_token,
-        encoded_features,
-        decoder.reset_state(1),
-        training=False,
-    )
+    dummy_token = torch.zeros((1, 1),dtype=torch.int64,)
+    decoder(dummy_token,encoded_features,decoder.reset_state(1),training=False,)
     encoder.load_weights(LSTM_ENCODER_WEIGHTS)
     decoder.load_weights(LSTM_DECODER_WEIGHTS)
     _lstm_encoder, _lstm_decoder = encoder, decoder
@@ -372,30 +290,17 @@ def infer_caption(image: np.ndarray) -> str:
     if start_token is None:
         raise ValueError("Le tokenizer ne contient pas le token <start>.")
 
-    decoder_input = torch.tensor(
-        [[start_token]],
-        dtype=torch.int64,
-        # device=INFERENCE_DEVICE,
-    )
+    decoder_input = torch.tensor([[start_token]],dtype=torch.int64,)
     result = []
-    for _ in range(_max_length or 50):
-        predictions, state, _ = decoder(
-            decoder_input,
-            features,
-            state,
-            training=False,
-        )
+    for _ in range(52): #max_length = 52
+        predictions, state, _ = decoder(decoder_input,features,state,training=False,)
         predicted_id = int(torch.argmax(predictions[0]).item())
         word = tokenizer.index_word.get(predicted_id, "<unk>")
         if word == "<end>":
             break
         if word not in {"<start>", "<unk>"}:
             result.append(word)
-        decoder_input = torch.tensor(
-            [[predicted_id]],
-            dtype=torch.int64,
-            # device=INFERENCE_DEVICE,
-        )
+        decoder_input = torch.tensor([[predicted_id]],dtype=torch.int64,)
     return " ".join(result)
 
 
