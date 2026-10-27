@@ -1,5 +1,7 @@
 # Legenda — Interface Web d'Annotation Automatique d'Images
 
+🌐 **Application déployée en ligne :** [**https://leyenda.darylbdr.tech**](https://leyenda.darylbdr.tech) *(hébergée sur Azure Container Apps & Cloudflare)*
+
 Cette application web **Flask** expose le pipeline complet de Deep Learning développé au cours des 3 livrables du projet **Leyenda / TouNum** :
 1. **Validation & Classification Photo / Non-photo** (CNN du Livrable 1, seuil de Youden $\theta = 0,2301$).
 2. **Débruitage photographique** (U-Net $\text{MSE} + \text{SSIM}$ du Livrable 2).

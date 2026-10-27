@@ -10,6 +10,8 @@
 **Membres du groupe :**  
 Schadrac APOUPOH · Daryl BOULOU · William PANCHA · Jaad CHOKR
 
+🌐 **Démo en ligne (Production) :** [**https://leyenda.darylbdr.tech**](https://leyenda.darylbdr.tech)
+
 </div>
 
 ---
@@ -135,6 +137,10 @@ Leyenda/
 ## 4. Application Web (`web_app/`) et Déploiement
 
 Une interface web complète (**Legenda**), située dans le dossier [`web_app/`](web_app/), permet d'importer une image (JPG, PNG, WEBP) par glisser-déposer et de visualiser en temps réel chaque étape du pipeline (Classification $\rightarrow$ Débruitage $\rightarrow$ Génération de la légende) grâce à un flux HTTP en streaming (`NDJSON`).
+
+### Déploiement en ligne (Cloud)
+L'application est déployée en production (conteneur Docker sur **Azure Container Apps** avec inférence CPU et *Scale-to-Zero*, exposé via **Cloudflare**) et accessible à l'adresse :
+- 🔗 **[https://leyenda.darylbdr.tech](https://leyenda.darylbdr.tech)**
 
 ### Lancement rapide en local
 ```bash
